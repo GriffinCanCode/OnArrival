@@ -20,7 +20,7 @@ os.environ['PYTHONANYWHERE_DOMAIN'] = 'greyhatharold.pythonanywhere.com'
 
 # Import your Flask app
 try:
-    from src.web_app import app  # Changed to import directly from web_app
+    from web_app import app  # Changed to import directly from web_app since src is in path
     application = app
     print("Successfully imported application from web_app")
 except Exception as e:
