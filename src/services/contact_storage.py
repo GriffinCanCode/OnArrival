@@ -5,35 +5,40 @@ import os
 from pathlib import Path
 
 class ContactStorage:
-    def __init__(self, filename: str = 'contacts.json', groups_filename: str = 'groups.json'):
-        # Get the base directory for data storage
-        self.data_dir = self._get_data_directory()
-        self.filename = os.path.join(self.data_dir, filename)
-        self.groups_filename = os.path.join(self.data_dir, groups_filename)
-        
-        # Ensure data directory exists
-        os.makedirs(self.data_dir, exist_ok=True)
-
-    def _get_data_directory(self) -> str:
-        """Get the appropriate data directory based on environment"""
-        if 'PYTHONANYWHERE_DOMAIN' in os.environ:
-            # PythonAnywhere environment
-            username = os.getenv('USERNAME', 'defaultuser')
-            return os.path.join('/home', username, 'onarrival', 'data')
-        else:
-            # Local development environment
-            return os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    def __init__(self):
+        try:
+            # Use a directory in /tmp which is writable by the web app
+            self.data_dir = '/tmp/onarrival_data'
+            self.contacts_file = os.path.join(self.data_dir, 'contacts.json')
+            self.groups_filename = os.path.join(self.data_dir, 'groups.json')
+            
+            # Create the directory if it doesn't exist
+            os.makedirs(self.data_dir, exist_ok=True)
+            
+            # Initialize empty contacts file if it doesn't exist
+            if not os.path.exists(self.contacts_file):
+                with open(self.contacts_file, 'w') as f:
+                    json.dump([], f)
+                    
+            # Initialize empty groups file if it doesn't exist
+            if not os.path.exists(self.groups_filename):
+                with open(self.groups_filename, 'w') as f:
+                    json.dump([], f)
+                    
+        except Exception as e:
+            print(f"Storage initialization error: {str(e)}")
+            raise
 
     def load_contacts(self) -> list[Contact]:
         try:
-            with open(self.filename, 'r') as f:
+            with open(self.contacts_file, 'r') as f:
                 contacts_data = json.load(f)
                 return [Contact.from_dict(contact) for contact in contacts_data]
         except FileNotFoundError:
             return []
 
     def save_contacts(self, contacts: list[Contact]) -> None:
-        with open(self.filename, 'w') as f:
+        with open(self.contacts_file, 'w') as f:
             json.dump([contact.to_dict() for contact in contacts], f)
 
     def delete_contact(self, contact: Contact) -> None:
