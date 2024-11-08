@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory
-from services.location_alert_system import LocationAlertSystem
+from .services.location_alert_system import LocationAlertSystem
 import os
 
 # Get directory paths
