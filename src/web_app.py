@@ -26,10 +26,21 @@ def send_static(path):
 def send_leisure_alert():
     try:
         data = request.json
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            })
+
         group = data.get('group')
         message = data.get('message')
         
-        # Get contacts for the group and send alerts
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'No message provided'
+            })
+
         success = True
         error_message = None
         
@@ -49,6 +60,7 @@ def send_leisure_alert():
             'error': error_message
         })
     except Exception as e:
+        print(f"Error in send_leisure_alert: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

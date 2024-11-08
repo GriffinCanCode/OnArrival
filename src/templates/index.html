@@ -57,24 +57,27 @@
 
         .ripple {
             position: absolute;
-            border: 2px solid transparent;
             border-radius: 50%;
-            background: linear-gradient(45deg, #2196F3, #4CAF50);
-            opacity: 0.4;
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
             pointer-events: none;
-            transform-origin: center;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
         }
 
         .screen {
             display: none;
-            max-width: 600px;
-            width: 100%;
-            margin: 0 auto;
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
-        .active {
+        .screen.active {
             display: block;
             opacity: 1;
         }
@@ -171,11 +174,11 @@
 
     <div id="mainScreen" class="screen active">
         <h2 class="text-center mb-4">OnArrival</h2>
-        <button class="gradient-btn contacts-btn" onclick="showScreen('contacts')">Contacts</button>
-        <div class="d-flex justify-content-between mt-4">
+        <div class="d-flex justify-content-between mb-4">
             <button class="gradient-btn" style="width: 48%" onclick="showScreen('business')">Business</button>
             <button class="gradient-btn" style="width: 48%" onclick="showScreen('leisure')">Leisure</button>
         </div>
+        <button class="gradient-btn contacts-btn" onclick="showScreen('contacts')">Contacts</button>
     </div>
 
     <div id="businessScreen" class="screen">
@@ -233,31 +236,26 @@
 
         function showScreen(screenName) {
             $('.screen').removeClass('active');
-            
-            rotateLogo(ROTATIONS[screenName], screenName !== 'main');
-            
-            if (screenName === 'leisure') {
-                loadGroups();
-            }
-            
             $(`#${screenName}Screen`).addClass('active');
+            rotateLogo(ROTATIONS[screenName]);
         }
 
-        function rotateLogo(degrees, withRipple = true) {
-            if (withRipple) createRipple();
-            
-            const logo = document.getElementById('logo');
-            logo.style.transform = `rotate(${degrees}deg)`;
+        function rotateLogo(degrees) {
+            $('#logo').css('transform', `rotate(${degrees}deg)`);
         }
 
         function createRipple() {
-            const ripple = document.createElement('div');
-            ripple.className = 'ripple';
-            document.getElementById('logo-container').appendChild(ripple);
-            
-            ripple.style.animation = 'rippleEffect 1s ease-out forwards';
+            const ripple = $('<div class="ripple"></div>');
+            $('#logo-container').append(ripple);
             setTimeout(() => ripple.remove(), 1000);
         }
+
+        $('#logo-container').on('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            createRipple(x, y);
+        });
 
         // Global state
         let groups = [];
@@ -340,9 +338,14 @@
 
         async function sendLeisureAlert() {
             const selectedGroup = $('#groupSelect').val();
-            const message = $('#useCustomScript').is(':checked') 
+            let message = $('#useCustomScript').is(':checked') 
                 ? $('#customScript').val()
                 : scripts[$('#scriptSelect').val()].main;
+
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
 
             const data = {
                 group: selectedGroup,
@@ -361,7 +364,7 @@
                     alert('Alerts sent successfully!');
                     showScreen('main');
                 } else {
-                    alert('Failed to send alerts: ' + result.error);
+                    alert('Failed to send alerts: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
                 alert('Error sending alerts: ' + error);
@@ -412,13 +415,6 @@
                 }
             }
         }
-
-        // Logo interaction
-        $('#logo-container').on('click', function() {
-            createRipple();
-            $(this).css('transform', 'scale(0.95)');
-            setTimeout(() => $(this).css('transform', 'scale(1)'), 200);
-        });
     </script>
 </body>
 </html> 

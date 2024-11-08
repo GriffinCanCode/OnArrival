@@ -8,7 +8,7 @@ from pathlib import Path
 class NotificationService:
     def __init__(self):
         # Load environment variables
-        load_dotenv()
+        self._load_environment()
         
         # Get credentials from environment variables
         self.account_sid = os.getenv('TWILIO_ACCOUNT_SID')
@@ -17,6 +17,13 @@ class NotificationService:
         
         if not all([self.account_sid, self.auth_token, self.from_number]):
             print("Warning: Twilio credentials not found in environment variables")
+        
+        # Initialize Twilio client
+        try:
+            self.client = Client(self.account_sid, self.auth_token)
+        except Exception as e:
+            print(f"Failed to initialize Twilio client: {str(e)}")
+            self.client = None
         
         # Update the script templates to include follow-up messages
         self.script_templates = {
