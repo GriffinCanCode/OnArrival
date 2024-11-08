@@ -1,13 +1,20 @@
-from src.models.location import Location
-from src.models.contact import Contact
-from src.services.contact_storage import ContactStorage
-from src.services.notification_service import NotificationService
-from src.services.location_service import LocationService
+from models.location import Location
+from models.contact import Contact
+from services.contact_storage import ContactStorage
+from services.notification_service import NotificationService
+from services.location_service import LocationService
 
 class LocationAlertSystem:
     def __init__(self):
         self.contact_storage = ContactStorage()
-        self.notification_service = NotificationService()
+        
+        # Initialize notification service without Flask/ngrok
+        try:
+            self.notification_service = NotificationService()
+        except Exception as e:
+            print(f"Error initializing notification service: {e}")
+            raise
+            
         self.location_service = LocationService()
         
         self.locations = Location.create_default_locations()

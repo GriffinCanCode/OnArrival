@@ -90,7 +90,7 @@ class OnArrivalLogo(QWidget):
             
     def add_ripple(self):
         """Add a new ripple effect"""
-        self.ripples.append((0.0, 1.0))  # Increased initial opacity from 0.8 to 1.0
+        self.ripples.append((0.0, 0.9))  # Increased initial opacity from 0.8 to 0.9
         if not self.ripple_timer.isActive():
             self.ripple_timer.start()
             
@@ -143,12 +143,15 @@ class OnArrivalLogo(QWidget):
         for size, opacity in self.ripples:
             if opacity <= 0:
                 continue
-            # Slower expansion speed
-            new_size = min(size + 0.02, 4.0)  # Reduced from 0.04 to 0.02 for more gradual expansion
-            # More gradual fade
-            fade_factor = 1.0 - (new_size / 4.0) ** 1.5  # Changed from quadratic (2) to 1.5 power for more gradual fade
+                
+            # Adjusted expansion and fade parameters
+            new_size = min(size + 0.015, 2.0)  # Slower expansion, smaller max size
+            # Smoother fade using exponential decay
+            fade_factor = 0.97  # Constant fade rate
             new_opacity = max(opacity * fade_factor, 0)
-            updated_ripples.append((new_size, new_opacity))
+            
+            if new_opacity > 0.01:  # Only keep visible ripples
+                updated_ripples.append((new_size, new_opacity))
         
         self.ripples = updated_ripples
         if self.ripples:
@@ -177,19 +180,19 @@ class OnArrivalLogo(QWidget):
         # Draw ripples first (behind the logo)
         for size, opacity in self.ripples:
             ripple_size = self.width() * size
-            painter.setOpacity(opacity * 0.4)  # Reduced from 0.6 to 0.4 for subtler ripples
+            painter.setOpacity(opacity * 0.7)  # Increased opacity multiplier from 0.5 to 0.7
             
             # Create gradient for ripple
             ripple_gradient = QLinearGradient(
                 float(self.width()/2 - ripple_size/2), float(self.height()/2 - ripple_size/2),
                 float(self.width()/2 + ripple_size/2), float(self.height()/2 + ripple_size/2)
             )
-            ripple_gradient.setColorAt(0, QColor("#2196F3"))  # Blue
-            ripple_gradient.setColorAt(1, QColor("#4CAF50"))  # Green
+            ripple_gradient.setColorAt(0, QColor("#2196F3"))
+            ripple_gradient.setColorAt(1, QColor("#4CAF50"))
             
-            # Create thicker pen with gradient
+            # Thinner pen for more subtle effect
             pen = QPen()
-            pen.setWidth(2)  # Reduced from 3 to 2 for more subtle ripples
+            pen.setWidth(1)  # Reduced width
             pen.setBrush(ripple_gradient)
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)

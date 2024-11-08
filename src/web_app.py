@@ -14,6 +14,9 @@ app = Flask(__name__,
 # Initialize the location alert system
 alert_system = LocationAlertSystem()
 
+# Get the Flask app from the notification service
+app = alert_system.notification_service.app
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -106,6 +109,3 @@ def handle_groups():
                 'success': False,
                 'error': str(e)
             })
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)

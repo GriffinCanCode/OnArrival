@@ -1,14 +1,16 @@
-from flask import Flask, request
 from twilio.twiml.voice_response import VoiceResponse
 from twilio.rest import Client
+from flask import Flask
 import os
 from dotenv import load_dotenv
-from pathlib import Path
 
 class NotificationService:
     def __init__(self):
         # Load environment variables
         load_dotenv()
+        
+        # Initialize Flask app
+        self.app = Flask(__name__)
         
         # Get Twilio credentials from environment variables
         self.account_sid = os.getenv('TWILIO_ACCOUNT_SID')
@@ -46,7 +48,11 @@ class NotificationService:
             print(f"Failed to initialize Twilio client: {str(e)}")
             raise
 
-    async def send_message(self, to_number, message):
+    def run(self):
+        """Run the Flask server"""
+        self.app.run(port=5001)
+
+    def send_message(self, to_number, message):
         try:
             message = self.client.messages.create(
                 body=message,
@@ -58,7 +64,7 @@ class NotificationService:
             print(f"Failed to send message: {str(e)}")
             return False, str(e)
 
-    def make_call(self, to_number: str, message: str, business_name: str = None, include_follow_up: bool = False) -> bool:
+    def make_call(self, to_number: str, message: str, business_name: str = None, include_follow_up: bool = True) -> bool:
         try:
             # Create TwiML for direct message delivery
             response = VoiceResponse()
@@ -68,19 +74,42 @@ class NotificationService:
                 response.pause(length=1)
             response.say(message, voice='alice', rate=0.8)
             
-            # Add follow-up message if requested
-            if include_follow_up:
-                response.pause(length=1)
-                response.say(self.script_templates["Landing"]["follow_up"], voice='alice', rate=0.8)
-            
             # Make the call
             call = self.client.calls.create(
                 twiml=str(response),
                 to=to_number,
-                from_=self.from_number
+                from_=self.twilio_number
             )
             
             print(f"Call initiated to {to_number}: {call.sid}")
+            
+            if include_follow_up:
+                # Find the matching template by comparing the main message
+                template_name = None
+                for name, template in self.script_templates.items():
+                    # Strip whitespace and compare normalized strings
+                    template_msg = template["main"].strip().lower()
+                    input_msg = message.strip().lower()
+                    if template_msg in input_msg or input_msg in template_msg:
+                        template_name = name
+                        break
+                
+                # If no matching template found, use Custom Message
+                if template_name is None:
+                    template_name = "Custom Message"
+                    print(f"No matching template found for message, using {template_name}")
+                
+                # Send follow-up text message
+                success, msg_sid = self.send_message(
+                    to_number,
+                    self.script_templates[template_name]["follow_up"]
+                )
+                
+                if success:
+                    print(f"Follow-up text sent to {to_number} using {template_name} template: {msg_sid}")
+                else:
+                    print(f"Failed to send follow-up text to {to_number}")
+            
             return True
             
         except Exception as e:
@@ -89,7 +118,6 @@ class NotificationService:
 
     def get_script_templates(self):
         """Returns the dictionary of available script templates"""
-        # Return just the main messages for backwards compatibility
         return {name: template["main"] for name, template in self.script_templates.items()}
 
     def get_full_script_templates(self):
@@ -99,6 +127,3 @@ class NotificationService:
     def add_script_template(self, name: str, template: str):
         """Adds a new script template"""
         self.script_templates[name] = template
-
-    def run(self):
-        self.app.run(port=5001)
