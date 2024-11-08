@@ -314,8 +314,15 @@
             const data = {
                 business_name: $('#businessName').val(),
                 phone: $('#businessPhone').val(),
-                message: $('#businessMessage').val()
+                message: $('#businessMessage').val(),
+                use_timer: $('#useTimer').is(':checked'),
+                timer_minutes: $('#useTimer').is(':checked') ? $('#timerMinutes').val() : null
             };
+
+            if (!data.business_name || !data.phone || !data.message) {
+                alert('Please fill in all required fields');
+                return;
+            }
 
             try {
                 const response = await fetch('/api/send_business', {
@@ -323,16 +330,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
                     alert('Alert sent successfully!');
                     showScreen('main');
                 } else {
-                    alert('Failed to send alert: ' + result.error);
+                    alert('Failed to send alert: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
-                alert('Error sending alert: ' + error);
+                console.error('Error sending alert:', error);
+                alert('Error sending alert: ' + error.message);
             }
         }
 
