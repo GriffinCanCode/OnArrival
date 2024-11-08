@@ -7,17 +7,16 @@ from pathlib import Path
 
 class NotificationService:
     def __init__(self):
-        # Load environment variables from appropriate location
-        self._load_environment()
+        # Load environment variables
+        load_dotenv()
         
+        # Get credentials from environment variables
         self.account_sid = os.getenv('TWILIO_ACCOUNT_SID')
         self.auth_token = os.getenv('TWILIO_AUTH_TOKEN')
-        self.twilio_number = os.getenv('TWILIO_PHONE_NUMBER')
-        self.client = Client(self.account_sid, self.auth_token)
+        self.from_number = os.getenv('TWILIO_FROM_NUMBER')
         
-        # Initialize Flask with proper configuration
-        self.app = Flask(__name__)
-        self._configure_flask()
+        if not all([self.account_sid, self.auth_token, self.from_number]):
+            print("Warning: Twilio credentials not found in environment variables")
         
         # Update the script templates to include follow-up messages
         self.script_templates = {
@@ -77,7 +76,7 @@ class NotificationService:
             call = self.client.calls.create(
                 twiml=str(response),
                 to=to_number,
-                from_=self.twilio_number
+                from_=self.from_number
             )
             
             print(f"Call initiated to {to_number}: {call.sid}")
