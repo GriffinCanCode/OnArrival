@@ -8,24 +8,14 @@ from pathlib import Path
 class NotificationService:
     def __init__(self):
         # Load environment variables
-        self._load_environment()
+        load_dotenv()
         
-        # Get credentials from environment variables
+        # Get Twilio credentials from environment variables
         self.account_sid = os.getenv('TWILIO_ACCOUNT_SID')
         self.auth_token = os.getenv('TWILIO_AUTH_TOKEN')
-        self.from_number = os.getenv('TWILIO_FROM_NUMBER')
+        self.twilio_number = os.getenv('TWILIO_PHONE_NUMBER')
         
-        if not all([self.account_sid, self.auth_token, self.from_number]):
-            print("Warning: Twilio credentials not found in environment variables")
-        
-        # Initialize Twilio client
-        try:
-            self.client = Client(self.account_sid, self.auth_token)
-        except Exception as e:
-            print(f"Failed to initialize Twilio client: {str(e)}")
-            self.client = None
-        
-        # Update the script templates to include follow-up messages
+        # Script templates
         self.script_templates = {
             "Landing": {
                 "main": "Hello (), Griffin the Goat has arrived at his destination safely.",
@@ -44,25 +34,29 @@ class NotificationService:
                 "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time. He will see you shortly and expects your highest energy level."
             }
         }
-
-    def _load_environment(self):
-        """Load environment variables from appropriate location"""
-        if 'PYTHONANYWHERE_DOMAIN' in os.environ:
-            # PythonAnywhere environment - load from .env in user's home
-            env_path = os.path.join('/home', os.getenv('USERNAME', ''), 'onarrival', '.env')
-        else:
-            # Local environment
-            env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
         
-        load_dotenv(env_path)
+        # Validate credentials exist
+        if not all([self.account_sid, self.auth_token, self.twilio_number]):
+            raise ValueError("Missing required Twilio credentials in environment variables")
+            
+        # Initialize Twilio client
+        try:
+            self.client = Client(self.account_sid, self.auth_token)
+        except Exception as e:
+            print(f"Failed to initialize Twilio client: {str(e)}")
+            raise
 
-    def _configure_flask(self):
-        """Configure Flask based on environment"""
-        if 'PYTHONANYWHERE_DOMAIN' in os.environ:
-            self.app.config.update(
-                SERVER_NAME=os.getenv('PYTHONANYWHERE_DOMAIN'),
-                PREFERRED_URL_SCHEME='https'
+    async def send_message(self, to_number, message):
+        try:
+            message = self.client.messages.create(
+                body=message,
+                from_=self.twilio_number,
+                to=to_number
             )
+            return True, message.sid
+        except Exception as e:
+            print(f"Failed to send message: {str(e)}")
+            return False, str(e)
 
     def make_call(self, to_number: str, message: str, business_name: str = None, include_follow_up: bool = False) -> bool:
         try:
