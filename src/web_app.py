@@ -3,7 +3,10 @@ from services.location_alert_system import LocationAlertSystem
 import threading
 import os
 
-app = Flask(__name__)
+app = Flask(__name__,
+    template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
+    static_folder=os.path.join(os.path.dirname(__file__), 'static')
+)
 alert_system = LocationAlertSystem()
 
 # Configure for PythonAnywhere
