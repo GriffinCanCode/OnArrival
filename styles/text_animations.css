@@ -1,0 +1,28 @@
+@keyframes textGlow {
+    0% {
+        text-shadow: 0 0 0px rgba(52, 152, 219, 0);
+    }
+    50% {
+        text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+    }
+    100% {
+        text-shadow: 0 0 0px rgba(52, 152, 219, 0);
+    }
+}
+
+@keyframes tracingLight {
+    0% {
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(52, 152, 219, 0.2) 50%,
+            transparent 100%) 
+            200% 0 / 200% 100%;
+    }
+    100% {
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(52, 152, 219, 0.2) 50%,
+            transparent 100%) 
+            -200% 0 / 200% 100%;
+    }
+} 

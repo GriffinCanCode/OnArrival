@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OnArrival</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="OnArrival">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+            background-color: #F8F9FA;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #logo-container {
+            width: 120px;
+            height: 120px;
+            position: relative;
+            margin: 40px auto;
+            cursor: pointer;
+        }
+
+        #logo {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+
+        .logo-circle {
+            width: 96px;
+            height: 96px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: linear-gradient(45deg, #2196F3, #4CAF50);
+        }
+
+        .logo-arrow {
+            width: 48px;
+            height: 62.4px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            clip-path: polygon(50% 0%, 0% 100%, 50% 85%, 100% 100%);
+            background-color: white;
+        }
+
+        .ripple {
+            position: absolute;
+            border: 2px solid transparent;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #2196F3, #4CAF50);
+            opacity: 0.4;
+            pointer-events: none;
+            transform-origin: center;
+        }
+
+        .screen {
+            display: none;
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .active {
+            display: block;
+            opacity: 1;
+        }
+
+        .gradient-btn {
+            background: linear-gradient(45deg, #3498DB, #27AE60);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            margin: 10px 0;
+            width: 100%;
+            font-weight: bold;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+            font-size: 16px;
+        }
+
+        .gradient-btn:active {
+            transform: scale(0.95);
+            opacity: 0.9;
+        }
+
+        .contacts-btn {
+            font-size: 14px;
+            padding: 12px 24px;
+            max-width: 225px;
+            margin: 0 auto;
+        }
+
+        .form-control {
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #E0E0E0;
+        }
+
+        .form-control:focus {
+            border-color: #3498DB;
+            box-shadow: none;
+        }
+
+        .contacts-list {
+            background: white;
+            border: 2px solid #E0E0E0;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .contact-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 4px 0;
+            border: 1px solid #E0E0E0;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .contact-item:hover {
+            background-color: #F8F9FA;
+            border-color: #3498DB;
+        }
+
+        .delete-btn {
+            background-color: #E74C3C;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        @keyframes rippleEffect {
+            from {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.4;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="logo-container">
+        <div id="logo">
+            <div class="logo-circle"></div>
+            <div class="logo-arrow"></div>
+        </div>
+    </div>
+
+    <div id="mainScreen" class="screen active">
+        <h2 class="text-center mb-4">OnArrival</h2>
+        <button class="gradient-btn contacts-btn" onclick="showScreen('contacts')">Contacts</button>
+        <div class="d-flex justify-content-between mt-4">
+            <button class="gradient-btn" style="width: 48%" onclick="showScreen('business')">Business</button>
+            <button class="gradient-btn" style="width: 48%" onclick="showScreen('leisure')">Leisure</button>
+        </div>
+    </div>
+
+    <div id="businessScreen" class="screen">
+        <h3 class="text-center mb-4">Business Alert</h3>
+        <input type="text" class="form-control" id="businessName" placeholder="Business Name">
+        <input type="tel" class="form-control" id="businessPhone" placeholder="Phone Number">
+        <textarea class="form-control" id="businessMessage" placeholder="Message"></textarea>
+        <div class="form-check mb-3">
+            <input type="checkbox" class="form-check-input" id="useTimer">
+            <label class="form-check-label" for="useTimer">Use Timer</label>
+        </div>
+        <input type="number" class="form-control" id="timerMinutes" value="30" min="1" max="120" style="display: none">
+        <button class="gradient-btn" onclick="sendBusinessAlert()">Send Alert</button>
+        <button class="gradient-btn" onclick="showScreen('main')">Back</button>
+    </div>
+
+    <div id="leisureScreen" class="screen">
+        <h3 class="text-center mb-4">Leisure Alert</h3>
+        <select class="form-control" id="groupSelect"></select>
+        <div id="contactCount" class="text-muted mb-3"></div>
+        <select class="form-control" id="scriptSelect"></select>
+        <div class="form-check mb-3">
+            <input type="checkbox" class="form-check-input" id="useCustomScript">
+            <label class="form-check-label" for="useCustomScript">Use Custom Script</label>
+        </div>
+        <textarea class="form-control" id="customScript" placeholder="Enter custom message. Use () for names." style="display: none"></textarea>
+        <button class="gradient-btn" onclick="sendLeisureAlert()">Send Alert</button>
+        <button class="gradient-btn" onclick="showScreen('main')">Back</button>
+    </div>
+
+    <div id="contactsScreen" class="screen">
+        <h3 class="text-center mb-4">Contacts Manager</h3>
+        <div id="contactsMenu">
+            <button class="gradient-btn" onclick="showGroupSelection()">Choose Existing Group</button>
+            <button class="gradient-btn" onclick="showGroupCreation()">Create New Group</button>
+            <button class="gradient-btn" onclick="showScreen('main')">Back to Main Menu</button>
+        </div>
+        <div id="groupManagement" style="display: none;">
+            <select class="form-control" id="groupList"></select>
+            <div id="contactsList"></div>
+            <button class="gradient-btn" onclick="addContact()">Add Contact</button>
+            <button class="gradient-btn" onclick="deleteGroup()">Delete Group</button>
+            <button class="gradient-btn" onclick="showContactsMenu()">Back</button>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        const ROTATIONS = {
+            main: 0,
+            business: -25,
+            leisure: 25,
+            contacts: 180
+        };
+
+        function showScreen(screenName) {
+            $('.screen').removeClass('active');
+            
+            rotateLogo(ROTATIONS[screenName], screenName !== 'main');
+            
+            if (screenName === 'leisure') {
+                loadGroups();
+            }
+            
+            $(`#${screenName}Screen`).addClass('active');
+        }
+
+        function rotateLogo(degrees, withRipple = true) {
+            if (withRipple) createRipple();
+            
+            const logo = document.getElementById('logo');
+            logo.style.transform = `rotate(${degrees}deg)`;
+        }
+
+        function createRipple() {
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            document.getElementById('logo-container').appendChild(ripple);
+            
+            ripple.style.animation = 'rippleEffect 1s ease-out forwards';
+            setTimeout(() => ripple.remove(), 1000);
+        }
+
+        // Global state
+        let groups = [];
+        let scripts = {
+            "Landing": {
+                "main": "Hello (), Griffin the Goat has arrived at his destination safely.",
+                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
+            },
+            "Eagle": {
+                "main": "Hello (), The eagle has inevitably landed and will be back shortly.",
+                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
+            },
+            "Familiar Soil": {
+                "main": "Hello (), if you are hearing this, Griffin is back on familiar soil.",
+                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
+            },
+            "Custom Message": {
+                "main": "",
+                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
+            }
+        };
+
+        // Initialize components
+        $(document).ready(() => {
+            // Set up script select
+            Object.keys(scripts).forEach(script => {
+                $('#scriptSelect').append(`<option value="${script}">${script}</option>`);
+            });
+
+            // Set up event listeners
+            $('#useTimer').change(function() {
+                $('#timerMinutes').toggle(this.checked);
+            });
+
+            $('#useCustomScript').change(function() {
+                $('#customScript').toggle(this.checked);
+                $('#scriptSelect').prop('disabled', this.checked);
+            });
+
+            // Load initial data
+            loadGroups();
+        });
+
+        // API functions
+        async function loadGroups() {
+            try {
+                const response = await fetch('/api/groups');
+                groups = await response.json();
+                updateGroupSelects();
+            } catch (error) {
+                console.error('Error loading groups:', error);
+            }
+        }
+
+        async function sendBusinessAlert() {
+            const data = {
+                business_name: $('#businessName').val(),
+                phone: $('#businessPhone').val(),
+                message: $('#businessMessage').val()
+            };
+
+            try {
+                const response = await fetch('/api/send_business', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Alert sent successfully!');
+                    showScreen('main');
+                } else {
+                    alert('Failed to send alert: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error sending alert: ' + error);
+            }
+        }
+
+        async function sendLeisureAlert() {
+            const selectedGroup = $('#groupSelect').val();
+            const message = $('#useCustomScript').is(':checked') 
+                ? $('#customScript').val()
+                : scripts[$('#scriptSelect').val()].main;
+
+            const data = {
+                group: selectedGroup,
+                message: message
+            };
+
+            try {
+                const response = await fetch('/api/send_leisure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Alerts sent successfully!');
+                    showScreen('main');
+                } else {
+                    alert('Failed to send alerts: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error sending alerts: ' + error);
+            }
+        }
+
+        // UI Helper functions
+        function updateGroupSelects() {
+            $('#groupSelect, #groupList').empty();
+            groups.forEach(group => {
+                const option = `<option value="${group.name}">${group.name}</option>`;
+                $('#groupSelect, #groupList').append(option);
+            });
+            updateContactCount();
+        }
+
+        function updateContactCount() {
+            const selectedGroup = groups.find(g => g.name === $('#groupSelect').val());
+            const count = selectedGroup ? selectedGroup.contacts.length : 0;
+            $('#contactCount').text(`${count} contacts will be notified`);
+        }
+
+        function showContactsMenu() {
+            $('#contactsMenu').show();
+            $('#groupManagement').hide();
+            rotateLogo(180);
+        }
+
+        function showGroupSelection() {
+            $('#contactsMenu').hide();
+            $('#groupManagement').show();
+            loadGroups();
+        }
+
+        async function showGroupCreation() {
+            const groupName = prompt('Enter new group name:');
+            if (groupName) {
+                try {
+                    const response = await fetch('/api/groups', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: groupName })
+                    });
+                    await loadGroups();
+                    showGroupSelection();
+                } catch (error) {
+                    alert('Error creating group: ' + error);
+                }
+            }
+        }
+
+        // Logo interaction
+        $('#logo-container').on('click', function() {
+            createRipple();
+            $(this).css('transform', 'scale(0.95)');
+            setTimeout(() => $(this).css('transform', 'scale(1)'), 200);
+        });
+    </script>
+</body>
+</html> 
