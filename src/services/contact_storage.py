@@ -1,6 +1,6 @@
 import json
-from models.contact import Contact
-from models.group import Group
+from src.models.contact import Contact
+from src.models.group import Group
 import os
 from pathlib import Path
 

@@ -1,8 +1,8 @@
-from ..models.location import Location
-from ..models.contact import Contact
-from .contact_storage import ContactStorage
-from .notification_service import NotificationService
-from .location_service import LocationService
+from src.models.location import Location
+from src.models.contact import Contact
+from src.services.contact_storage import ContactStorage
+from src.services.notification_service import NotificationService
+from src.services.location_service import LocationService
 
 class LocationAlertSystem:
     def __init__(self):
