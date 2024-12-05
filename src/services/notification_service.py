@@ -25,7 +25,7 @@ class NotificationService:
             },
             "Eagle": {
                 "main": "Hello (), The eagle has inevitably landed and will be back shortly. Prepare appropiately. Eagle noises, et cetera.",
-                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time. He will see you shortly and expects your highest energy level."
+                "follow_up": "If you did not receieve the phone call, this was a scheduled public security announcement of Good Man Griffin's arrival. Thank you for listening, if you did, the G.O.A.T. approaches and is thankful for your time. He will see you shortly and expects your highest energy level."
             },
             "Familiar Soil": {
                 "main": "Hello (), if you are hearing this, Griffin is back on familiar soil. Prepare for the worst but expect the best. Dreams are only what you make them. Alcohol or EMS may be required. Throw this phone after the conclusion of this message or expect second degree burns.",

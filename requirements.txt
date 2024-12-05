@@ -21,10 +21,12 @@ ngrok==1.4.0
 packaging==24.1
 propcache==0.2.0
 PyJWT==2.9.0
+pyngrok==7.2.1
 PyQt6==6.7.1
 PyQt6-Qt6==6.7.3
 PyQt6_sip==13.8.0
 python-dotenv==1.0.1
+PyYAML==6.0.2
 requests==2.32.3
 twilio==9.3.6
 urllib3==2.2.3
