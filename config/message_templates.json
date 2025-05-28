@@ -1,0 +1,44 @@
+{
+  "voice_templates": {
+    "arrival_basic": {
+      "name": "Basic Arrival",
+      "main": "Hello, this is an automated notification that the traveler has arrived at their destination safely.",
+      "follow_up": "Thank you for listening. This was an automated arrival notification service."
+    },
+    "arrival_formal": {
+      "name": "Formal Arrival",
+      "main": "Hello, this is a formal notification that the expected party has arrived and will be available shortly.",
+      "follow_up": "This was a scheduled arrival notification. Thank you for your attention."
+    },
+    "arrival_casual": {
+      "name": "Casual Arrival", 
+      "main": "Hey there! Just letting you know that your contact has made it to their destination safely.",
+      "follow_up": "This was an automated arrival notification. Have a great day!"
+    },
+    "custom_message": {
+      "name": "Custom Message",
+      "main": "",
+      "follow_up": "Thank you for listening. This was an automated notification service."
+    }
+  },
+  "location_templates": {
+    "california": {
+      "name": "California",
+      "message": "This is an automated service message. The traveler has just arrived in California and will be available shortly. Please prepare accordingly."
+    },
+    "dc": {
+      "name": "Washington DC", 
+      "message": "This is an automated service message. The traveler has just arrived in the Washington DC area and will be available shortly. Please prepare accordingly."
+    },
+    "general": {
+      "name": "General Location",
+      "message": "This is an automated service message. The traveler has arrived at their destination and will be available shortly."
+    }
+  },
+  "placeholders": {
+    "user_name": "[USER_NAME]",
+    "business_name": "[BUSINESS_NAME]",
+    "destination": "[DESTINATION]",
+    "contact_name": "[CONTACT_NAME]"
+  }
+} 

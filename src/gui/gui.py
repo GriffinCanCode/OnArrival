@@ -1,170 +1,209 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                            QHBoxLayout, QPushButton, QLabel, QLineEdit,
-                            QMessageBox, QStackedWidget, QSpinBox, QTextEdit,
-                            QTreeWidget, QTreeWidgetItem, QTabWidget, QComboBox,
-                            QDialog)
-from PyQt6.QtCore import Qt, QRect, QPointF
-from PyQt6.QtGui import QPainter, QColor, QPainterPath, QFont, QPen, QLinearGradient
+                            QLabel, QLineEdit, QMessageBox, QStackedWidget, 
+                            QSpinBox, QTextEdit, QComboBox, QCheckBox)
+from PyQt6.QtCore import Qt
 import sys
+import os
+
+# Add the parent directory to sys.path to import from src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from services.location_alert_system import LocationAlertSystem
-from gui.logo import OnArrivalLogo
-from PyQt6.QtCore import QTimer
-import threading
-import math
-from models.group import Group
-from models.contact import Contact
-from gui.contacts_manager import ContactsManager
+from gui.stylesheets import Stylesheets
 from gui.gradient_button import GradientButton
-from gui.stylesheets import MAIN_STYLE, DELETE_BUTTON_STYLE
+from gui.contacts_manager import ContactsManager
+from gui.logo import create_icon_label
+from utils.validation import InputValidator, ValidationResult
 
 class OnArrivalGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("OnArrival")
-        self.setMinimumSize(800, 600)
-        self.setStyleSheet(MAIN_STYLE)
+        self.setGeometry(100, 100, 500, 700)
         
-        # Initialize the location alert system
-        self.alert_system = LocationAlertSystem()
+        # Initialize alert system
+        try:
+            self.alert_system = LocationAlertSystem()
+        except Exception as e:
+            QMessageBox.critical(self, "Initialization Error", f"Failed to initialize alert system: {str(e)}")
+            sys.exit(1)
         
-        # Start the Flask server in a separate thread
-        flask_thread = threading.Thread(target=self.alert_system.notification_service.run, daemon=True)
-        flask_thread.start()
-        
-        # Create main widget and layout
-        main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        main_layout = QVBoxLayout(main_widget)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(30, 30, 30, 30)
-        
-        # Create and add logo with transparent background
-        self.logo = OnArrivalLogo(main_widget)
-        main_layout.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignCenter)
-        
-        # Add more spacing around logo
-        main_layout.addSpacing(40)  # Increased from 20
-        
-        # Create screens widget
-        self.screens_widget = QStackedWidget()
-        
-        # Create choice screen
-        choice_screen = QWidget()
-        choice_layout = QVBoxLayout(choice_screen)
-        choice_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Create button container
-        button_container = QWidget()
-        button_layout = QVBoxLayout(button_container)
-        button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        button_layout.setSpacing(20)
-
-        # Create contacts button (25% smaller)
-        contacts_btn = GradientButton("Contacts")
-        contacts_btn.setFixedSize(225, 75)  # 25% smaller than other buttons
-        contacts_btn.setStyleSheet("""
-            QPushButton {
-                font-size: 16px;
-                border-radius: 12px;
-            }
-        """)
-        
-        # Create business and leisure buttons
-        business_btn = GradientButton("Business")
-        leisure_btn = GradientButton("Leisure")
-        
-        # Style the main buttons
-        for btn in [business_btn, leisure_btn]:
-            btn.setFixedSize(300, 100)
-            btn.setStyleSheet("""
-                QPushButton {
-                    font-size: 18px;
-                    border-radius: 12px;
-                }
-            """)
-        
-        # Add contacts button
-        button_layout.addWidget(contacts_btn, alignment=Qt.AlignmentFlag.AlignCenter)
-        button_layout.addSpacing(10)  # Add some space between contacts and other buttons
-        
-        # Create and add the business/leisure container
-        choice_widget = QWidget()
-        choice_layout_h = QHBoxLayout(choice_widget)
-        choice_layout_h.setSpacing(30)
-        choice_layout_h.addWidget(business_btn)
-        choice_layout_h.addWidget(leisure_btn)
-        button_layout.addWidget(choice_widget)
-        
-        # Add button container to choice screen
-        choice_layout.addWidget(button_container)
-        
-        # Create other screens
-        self.business_screen = self.create_business_screen()
-        self.leisure_screen = self.create_leisure_screen()
-        self.contacts_screen = QWidget()
-        contacts_layout = QVBoxLayout(self.contacts_screen)
-        self.contacts_manager = ContactsManager(self.alert_system, self)
-        contacts_layout.addWidget(self.contacts_manager)
-        
-        # Add all screens to the stacked widget
-        self.screens_widget.addWidget(choice_screen)
-        self.screens_widget.addWidget(self.business_screen)
-        self.screens_widget.addWidget(self.leisure_screen)
-        self.screens_widget.addWidget(self.contacts_screen)
-        
-        # Connect button signals
-        contacts_btn.clicked.connect(self.show_contacts_manager)
-        business_btn.clicked.connect(self.handle_business_click)
-        leisure_btn.clicked.connect(self.handle_leisure_click)
-        
-        # Add screens widget to main layout
-        main_layout.addWidget(self.screens_widget)
-        
-        # Show initial screen
-        self.screens_widget.setCurrentWidget(choice_screen)
-        
-        # Initialize timer and business data
+        # Timer for business functionality
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
         self.remaining_time = 0
         self.timer_label = None
+        self.use_timer = False
+        
+        # Business contact info
         self.business_phone = None
-        self.use_timer = False  # Add flag for timer usage
+        self.business_message = None
+        self.business_name = None
+        
+        self.init_ui()
+        self.setStyleSheet(Stylesheets.get_main_style())
 
-    def handle_business_click(self):
-        """Handle business button click with animation"""
-        self.logo.rotate_to(-25)
-        # Wait for animation to complete before changing screen
-        QTimer.singleShot(300, self.show_business_screen)
+    def init_ui(self):
+        """Initialize the user interface"""
+        # Create central widget and main layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
         
-    def handle_leisure_click(self):
-        """Handle leisure button click with animation"""
-        # Check if there are any groups
-        groups = self.alert_system.contact_storage.load_groups()
+        # Create stacked widget for different screens
+        self.screens_widget = QStackedWidget()
+        main_layout.addWidget(self.screens_widget)
         
-        if not groups:
-            QMessageBox.warning(
-                self, 
-                "No Groups", 
-                "Please create a contact group first before using the leisure feature.\nWould you like to create one now?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if QMessageBox.StandardButton.Yes:
-                # Show contacts manager to create a group
-                self.show_contacts_manager()
-            return
+        # Create screens
+        self.main_screen = self.create_main_screen()
+        self.business_screen = self.create_business_screen()
+        self.leisure_screen = self.create_leisure_screen()
         
-        # If groups exist, proceed with leisure screen
-        self.logo.rotate_to(25)
-        QTimer.singleShot(300, self.show_leisure_screen)
+        # Add screens to stacked widget
+        self.screens_widget.addWidget(self.main_screen)
+        self.screens_widget.addWidget(self.business_screen)
+        self.screens_widget.addWidget(self.leisure_screen)
         
-        # Refresh the groups combo box
-        self.refresh_groups_combo()
+        # Show main screen initially
+        self.screens_widget.setCurrentIndex(0)
+
+    def create_main_screen(self):
+        """Create the main menu screen"""
+        screen = QWidget()
+        layout = QVBoxLayout(screen)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(30)
         
-    def show_choice_screen(self, from_back_button=True):
-        """Switch to the choice screen"""
-        self.logo.rotate_to_without_ripple(0)  # Always use without ripple when returning to choice screen
-        self.screens_widget.setCurrentIndex(0)  # First screen is choice screen
+        # Add logo
+        logo_label = create_icon_label()
+        layout.addWidget(logo_label)
+        
+        # Add title
+        title = QLabel("OnArrival")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("""
+            font-size: 36px;
+            font-weight: bold;
+            color: #2C3E50;
+            margin: 20px 0;
+        """)
+        layout.addWidget(title)
+        
+        # Add subtitle
+        subtitle = QLabel("Automated Arrival Notification System")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle.setStyleSheet("""
+            font-size: 14px;
+            color: #7F8C8D;
+            margin-bottom: 30px;
+        """)
+        layout.addWidget(subtitle)
+        
+        # Create buttons container
+        buttons_container = QWidget()
+        buttons_container.setMaximumWidth(300)
+        buttons_layout = QVBoxLayout(buttons_container)
+        
+        # Business Alert button
+        business_btn = GradientButton("Business Alert")
+        business_btn.clicked.connect(self.show_business_screen)
+        buttons_layout.addWidget(business_btn)
+        
+        # Leisure Alert button
+        leisure_btn = GradientButton("Leisure Alert")
+        leisure_btn.clicked.connect(self.show_leisure_screen)
+        buttons_layout.addWidget(leisure_btn)
+        
+        # Contacts button
+        contacts_btn = GradientButton("Manage Contacts")
+        contacts_btn.clicked.connect(self.open_contacts_manager)
+        buttons_layout.addWidget(contacts_btn)
+        
+        layout.addWidget(buttons_container)
+        layout.addStretch()
+        
+        return screen
+
+    def validate_business_inputs(self, business_name: str, phone: str, message: str, timer_minutes: int = None) -> tuple[bool, str]:
+        """Validate business alert inputs"""
+        # Validate business name
+        business_validation = InputValidator.validate_business_name(business_name)
+        if not business_validation.is_valid:
+            return False, f"Business name error: {business_validation.error_message}"
+        
+        # Validate phone number
+        phone_validation = InputValidator.validate_phone_number(phone)
+        if not phone_validation.is_valid:
+            return False, f"Phone number error: {phone_validation.error_message}"
+        
+        # Validate message
+        message_validation = InputValidator.validate_message(message)
+        if not message_validation.is_valid:
+            return False, f"Message error: {message_validation.error_message}"
+        
+        # Validate timer if provided
+        if timer_minutes is not None:
+            timer_validation = InputValidator.validate_timer_minutes(timer_minutes)
+            if not timer_validation.is_valid:
+                return False, f"Timer error: {timer_validation.error_message}"
+        
+        return True, "All inputs valid"
+
+    def validate_leisure_inputs(self, group_name: str, message: str) -> tuple[bool, str]:
+        """Validate leisure alert inputs"""
+        # Validate group name
+        if not group_name.strip():
+            return False, "Please select a group"
+        
+        group_validation = InputValidator.validate_group_name(group_name)
+        if not group_validation.is_valid:
+            return False, f"Group name error: {group_validation.error_message}"
+        
+        # Validate message
+        message_validation = InputValidator.validate_message(message)
+        if not message_validation.is_valid:
+            return False, f"Message error: {message_validation.error_message}"
+        
+        return True, "All inputs valid"
+
+    def sanitize_business_inputs(self, business_name: str, phone: str, message: str) -> tuple[str, str, str]:
+        """Sanitize business inputs and return cleaned values"""
+        business_validation = InputValidator.validate_business_name(business_name)
+        phone_validation = InputValidator.validate_phone_number(phone)
+        message_validation = InputValidator.validate_message(message)
+        
+        return (
+            business_validation.sanitized_value,
+            phone_validation.sanitized_value,
+            message_validation.sanitized_value
+        )
+
+    def open_contacts_manager(self):
+        """Open the contacts manager window"""
+        try:
+            self.contacts_manager = ContactsManager(self.alert_system, self)
+            self.contacts_manager.show()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to open contacts manager: {str(e)}")
+
+    def handle_back_button(self):
+        """Handle back button clicks"""
+        # Reset timer if it was running
+        if self.timer.isActive():
+            self.timer.stop()
+            self.remaining_time = 0
+            
+            # Re-enable inputs
+            if hasattr(self, 'business_name_input'):
+                self.business_name_input.setEnabled(True)
+                self.business_phone_input.setEnabled(True)
+                self.timer_input.setEnabled(True)
+                self.message_input.setEnabled(True)
+                if hasattr(self, 'timer_toggle'):
+                    self.timer_toggle.setEnabled(True)
+        
+        # Go back to main screen
+        self.screens_widget.setCurrentIndex(0)
 
     def show_business_screen(self):
         """Switch to business screen with slide animation"""
@@ -176,20 +215,29 @@ class OnArrivalGUI(QMainWindow):
 
     def start_business_timer(self):
         """Start the business countdown timer"""
-        business_name = self.business_name_input.text()
-        phone = self.business_phone_input.text()
-        message = self.message_input.toPlainText()
+        business_name = self.business_name_input.text().strip()
+        phone = self.business_phone_input.text().strip()
+        message = self.message_input.toPlainText().strip()
+        timer_minutes = self.timer_input.value()
         
-        if not all([business_name, phone, message]):
-            QMessageBox.warning(self, "Input Error", "Please fill in all fields!")
+        # Validate inputs
+        is_valid, error_msg = self.validate_business_inputs(business_name, phone, message, timer_minutes)
+        if not is_valid:
+            QMessageBox.warning(self, "Validation Error", error_msg)
             return
         
-        # Store phone and message for later use
-        self.business_phone = phone
-        self.business_message = message
+        # Sanitize inputs
+        sanitized_business, sanitized_phone, sanitized_message = self.sanitize_business_inputs(
+            business_name, phone, message
+        )
+        
+        # Store sanitized values for later use
+        self.business_phone = sanitized_phone
+        self.business_message = sanitized_message
+        self.business_name = sanitized_business
         
         # Convert minutes to seconds
-        self.remaining_time = self.timer_input.value() * 60
+        self.remaining_time = timer_minutes * 60
         
         # Create or update timer label
         if not self.timer_label:
@@ -217,7 +265,7 @@ class OnArrivalGUI(QMainWindow):
                 self.alert_system.notification_service.make_call(
                     self.business_phone,
                     self.business_message,
-                    self.business_name  # Pass business name here too
+                    self.business_name
                 )
                 QMessageBox.information(self, "Alert Sent", 
                                       f"Timer finished and alert sent to {self.business_name}!")
@@ -248,100 +296,12 @@ class OnArrivalGUI(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to send alert: {str(e)}")
 
-    def refresh_contacts_list(self):
-        """Refresh the contacts list display"""
-        # Clear existing widgets
-        for i in reversed(range(self.contacts_list_layout.count())): 
-            self.contacts_list_layout.itemAt(i).widget().setParent(None)
-        
-        # Add each contact
-        for contact in self.alert_system.contacts:
-            contact_widget = QWidget()
-            contact_layout = QHBoxLayout(contact_widget)
-            
-            contact_info = QLabel(f"{contact.name} - {contact.phone}")
-            delete_btn = QPushButton("Delete")
-            delete_btn.setStyleSheet(DELETE_BUTTON_STYLE)
-            delete_btn.clicked.connect(lambda checked, c=contact: self.delete_contact(c))
-            
-            contact_layout.addWidget(contact_info)
-            contact_layout.addWidget(delete_btn)
-            
-            self.contacts_list_layout.addWidget(contact_widget)
-            
-            # Update contact widget styling
-            contact_widget.setStyleSheet("""
-                QWidget {
-                    background-color: white;
-                    border: 1px solid #E0E0E0;
-                    border-radius: 8px;
-                    padding: 8px;
-                    margin: 4px 0;
-                }
-                QWidget:hover {
-                    background-color: #F8F9FA;
-                    border-color: #3498DB;
-                }
-            """)
-            
-            contact_info.setStyleSheet("""
-                QLabel {
-                    color: #2C3E50;
-                    font-size: 16px;
-                    padding: 8px;
-                }
-            """)
-            
-            delete_btn.setStyleSheet(DELETE_BUTTON_STYLE)
-
-    def send_location_alert(self):
-        """Send location alert to contacts"""
-        try:
-            current_location = self.alert_system.location_service.get_current_location()
-            selected_group = self.group_combo.currentText()
-            
-            if not selected_group:
-                QMessageBox.warning(self, "Error", "Please select a group!")
-                return
-
-            groups = self.alert_system.contact_storage.load_groups()
-            group = next((g for g in groups if g.name == selected_group), None)
-            
-            if not group:
-                QMessageBox.warning(self, "Error", "Selected group not found!")
-                return
-
-            alerts_sent = False
-            for location_name, location_data in self.alert_system.locations.items():
-                if self.alert_system.location_service.is_within_radius(
-                    current_location, 
-                    location_data.coords, 
-                    location_data.radius
-                ):
-                    for contact in group.contacts:
-                        self.alert_system.notification_service.make_call(
-                            contact.phone, 
-                            location_data.message
-                        )
-                    alerts_sent = True
-                    QMessageBox.information(
-                        self, 
-                        "Success", 
-                        f"Alerts sent to {len(group.contacts)} contacts in group {group.name}!"
-                    )
-                    break
-            
-            if not alerts_sent:
-                QMessageBox.information(self, "Notice", "Not within any monitored locations")
-                
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to send alerts: {str(e)}")
-
     def send_leisure_alert(self):
         """Send alert using the leisure functionality"""
         try:
             selected_group = self.group_combo.currentText()
             
+            # Validate group selection
             if not selected_group:
                 QMessageBox.warning(self, "Error", "Please select a group!")
                 return
@@ -352,78 +312,98 @@ class OnArrivalGUI(QMainWindow):
             if not group:
                 QMessageBox.warning(self, "Error", "Selected group not found!")
                 return
+            
+            if not group.contacts:
+                QMessageBox.warning(self, "Error", f"Group '{selected_group}' has no contacts!")
+                return
 
             # Get message template or custom script
             if self.custom_script_toggle.isChecked():
-                message_template = self.script_input.toPlainText()
+                message_template = self.script_input.toPlainText().strip()
                 if not message_template or '()' not in message_template:
                     QMessageBox.warning(self, "Error", "Please enter a valid custom script with () for name placement!")
                     return
             else:
-                message_template = self.alert_system.notification_service.get_script_templates()[self.script_combo.currentText()]
+                selected_script = self.script_combo.currentText()
+                if not selected_script:
+                    QMessageBox.warning(self, "Error", "Please select a message script!")
+                    return
+                message_template = self.alert_system.notification_service.get_script_templates()[selected_script]
+
+            # Validate inputs
+            is_valid, error_msg = self.validate_leisure_inputs(selected_group, message_template)
+            if not is_valid:
+                QMessageBox.warning(self, "Validation Error", error_msg)
+                return
 
             # Send alerts to all contacts in group
-            for contact in group.contacts:
-                message = message_template.replace('()', contact.name)
-                self.alert_system.notification_service.make_call(
-                    contact.phone, 
-                    message,
-                    include_follow_up=True  # Add this parameter to include the follow-up message
-                )
+            success_count = 0
+            error_messages = []
             
-            QMessageBox.information(
-                self, 
-                "Success", 
-                f"Alerts sent to {len(group.contacts)} contacts in group {group.name}!"
-            )
+            for contact in group.contacts:
+                try:
+                    # Sanitize message for each contact
+                    message_validation = InputValidator.validate_message(message_template.replace('()', contact.name))
+                    if not message_validation.is_valid:
+                        error_messages.append(f"Invalid message for {contact.name}: {message_validation.error_message}")
+                        continue
+                    
+                    sanitized_message = message_validation.sanitized_value
+                    
+                    result = self.alert_system.notification_service.make_call(
+                        contact.phone, 
+                        sanitized_message,
+                        include_follow_up=True
+                    )
+                    
+                    if result:
+                        success_count += 1
+                    else:
+                        error_messages.append(f"Failed to send alert to {contact.name}")
+                        
+                except Exception as e:
+                    error_messages.append(f"Error sending to {contact.name}: {str(e)}")
+            
+            # Show results
+            if success_count > 0:
+                result_msg = f"Alerts sent to {success_count} of {len(group.contacts)} contacts in group {group.name}!"
+                if error_messages:
+                    result_msg += f"\n\nErrors encountered:\n" + "\n".join(error_messages[:5])  # Show first 5 errors
+                QMessageBox.information(self, "Alert Results", result_msg)
+            else:
+                error_msg = "Failed to send any alerts."
+                if error_messages:
+                    error_msg += f"\n\nErrors:\n" + "\n".join(error_messages[:5])
+                QMessageBox.warning(self, "Alert Failed", error_msg)
                 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to send alerts: {str(e)}")
 
-    def update_gradient(self):
-        """Update gradient animation for all buttons"""
-        self.gradient_position = (self.gradient_position + 0.005) % 1.0
-        # Force update of all gradient buttons
-        for child in self.findChildren(GradientButton):
-            child.update()
-
-    def show_contacts_manager(self):
-        """Switch to contacts management screen"""
-        self.logo.rotate_to(180)  # Rotate logo upside down
-        self.contacts_manager.reset_to_menu()  # Show the menu screen of contacts manager
-        QTimer.singleShot(200, lambda: self.screens_widget.setCurrentIndex(3))  # Assuming it's the 4th screen
-
-    def setup_contacts_screen(self):
-        """Setup the contacts management screen"""
-        pass
-
     def refresh_groups_combo(self):
-        """Refresh the groups in the combo boxes"""
+        """Refresh the groups combo box with validation"""
         try:
-            # Temporarily disconnect the signal to prevent recursive calls
-            self.group_combo.currentTextChanged.disconnect()
-            
-            self.group_combo.clear()
             groups = self.alert_system.contact_storage.load_groups()
+            self.group_combo.clear()
             
+            valid_groups = []
             for group in groups:
-                self.group_combo.addItem(group.name)
-            
-            # Update contact count label
-            selected_group = self.group_combo.currentText()
-            if selected_group:
-                group = next((g for g in groups if g.name == selected_group), None)
-                if group:
-                    self.contact_count.setText(f"{len(group.contacts)} contacts will be notified")
+                # Validate group integrity
+                validation_result = group.validate_group_integrity()
+                if validation_result.is_valid:
+                    valid_groups.append(group.name)
                 else:
-                    self.contact_count.setText("0 contacts will be notified")
-                
-            # Reconnect the signal
-            self.group_combo.currentTextChanged.connect(self.update_contact_count)
+                    print(f"Warning: Group '{group.name}' has validation issues: {validation_result.error_message}")
             
+            self.group_combo.addItems(valid_groups)
+            
+            if valid_groups:
+                self.update_contact_count(valid_groups[0])
+            else:
+                self.contact_count.setText("No valid groups available")
+                
         except Exception as e:
             print(f"Error refreshing groups: {str(e)}")
-            self.contact_count.setText("0 contacts will be notified")
+            self.contact_count.setText("Error loading groups")
 
     def update_contact_count(self, selected_group: str):
         """Update the contact count when group selection changes"""
@@ -431,12 +411,13 @@ class OnArrivalGUI(QMainWindow):
             groups = self.alert_system.contact_storage.load_groups()
             group = next((g for g in groups if g.name == selected_group), None)
             if group:
-                self.contact_count.setText(f"{len(group.contacts)} contacts will be notified")
+                count = len(group.contacts)
+                self.contact_count.setText(f"{count} contact{'s' if count != 1 else ''} will be notified")
             else:
                 self.contact_count.setText("0 contacts will be notified")
         except Exception as e:
             print(f"Error updating contact count: {str(e)}")
-            self.contact_count.setText("0 contacts will be notified")
+            self.contact_count.setText("Error loading contact count")
 
     def create_business_screen(self):
         """Create the business screen"""
@@ -449,12 +430,12 @@ class OnArrivalGUI(QMainWindow):
         form_container.setMaximumWidth(600)
         form_layout = QVBoxLayout(form_container)
         
-        # Add input fields
+        # Add input fields with placeholders that show validation requirements
         self.business_name_input = QLineEdit()
-        self.business_name_input.setPlaceholderText("Business Name")
+        self.business_name_input.setPlaceholderText("Business Name (letters, numbers, spaces, common punctuation)")
         
         self.business_phone_input = QLineEdit()
-        self.business_phone_input.setPlaceholderText("Phone Number")
+        self.business_phone_input.setPlaceholderText("Phone Number (e.g., +1234567890 or (123) 456-7890)")
         
         # Create timer container
         timer_container = QWidget()
@@ -476,7 +457,7 @@ class OnArrivalGUI(QMainWindow):
         timer_layout.addWidget(self.timer_input)
         
         self.message_input = QTextEdit()
-        self.message_input.setPlaceholderText("Message")
+        self.message_input.setPlaceholderText("Message (max 1600 characters)")
         self.message_input.setMaximumHeight(100)
         
         action_btn = GradientButton("Send Alert")
@@ -507,22 +488,30 @@ class OnArrivalGUI(QMainWindow):
         
     def handle_business_action(self):
         """Handle business alert with optional timer"""
-        business_name = self.business_name_input.text()
-        phone = self.business_phone_input.text()
-        message = self.message_input.toPlainText()
+        business_name = self.business_name_input.text().strip()
+        phone = self.business_phone_input.text().strip()
+        message = self.message_input.toPlainText().strip()
         
-        if not all([business_name, phone, message]):
-            QMessageBox.warning(self, "Input Error", "Please fill in all fields!")
+        # Validate inputs
+        timer_minutes = self.timer_input.value() if self.use_timer else None
+        is_valid, error_msg = self.validate_business_inputs(business_name, phone, message, timer_minutes)
+        if not is_valid:
+            QMessageBox.warning(self, "Validation Error", error_msg)
             return
         
-        # Store phone and message
-        self.business_phone = phone
-        self.business_message = message
-        self.business_name = business_name  # Store business name
+        # Sanitize inputs
+        sanitized_business, sanitized_phone, sanitized_message = self.sanitize_business_inputs(
+            business_name, phone, message
+        )
+        
+        # Store sanitized values
+        self.business_phone = sanitized_phone
+        self.business_message = sanitized_message
+        self.business_name = sanitized_business
         
         if self.use_timer:
             # Start timer functionality
-            self.remaining_time = self.timer_input.value() * 60
+            self.remaining_time = timer_minutes * 60
             
             # Create or update timer label
             if not self.timer_label:
@@ -542,13 +531,16 @@ class OnArrivalGUI(QMainWindow):
         else:
             # Send alert immediately
             try:
-                self.alert_system.notification_service.make_call(
-                    self.business_phone,
-                    self.business_message,
-                    business_name  # Pass business name to make_call
+                result = self.alert_system.notification_service.make_call(
+                    sanitized_phone,
+                    sanitized_message,
+                    business_name=sanitized_business
                 )
-                QMessageBox.information(self, "Alert Sent", 
-                                      f"Alert sent to {business_name}!")
+                if result:
+                    QMessageBox.information(self, "Alert Sent", 
+                                          f"Alert sent successfully to {sanitized_business}!")
+                else:
+                    QMessageBox.warning(self, "Error", "Failed to send alert")
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to send alert: {str(e)}")
 
@@ -563,38 +555,43 @@ class OnArrivalGUI(QMainWindow):
         form_container.setMaximumWidth(600)
         form_layout = QVBoxLayout(form_container)
         
-        # Add group selection
+        # Group selection
         self.group_combo = QComboBox()
         self.contact_count = QLabel("0 contacts will be notified")
         
-        # Add script selection
+        # Script selection container
         script_container = QWidget()
         script_layout = QVBoxLayout(script_container)
         
-        script_label = QLabel("Select Message Type:")
         self.script_combo = QComboBox()
-        self.script_combo.addItems(self.alert_system.notification_service.get_script_templates().keys())
         
-        # Add custom script toggle and input
-        self.custom_script_toggle = GradientButton("Use Custom Script")
-        self.custom_script_toggle.setCheckable(True)
-        self.custom_script_toggle.clicked.connect(self.toggle_script_input)
+        # Load scripts with error handling
+        try:
+            scripts = self.alert_system.notification_service.get_script_templates()
+            self.script_combo.addItems(scripts.keys())
+        except Exception as e:
+            print(f"Error loading scripts: {e}")
+            self.script_combo.addItems(["Basic Arrival"])
         
-        self.script_input = QTextEdit()
-        self.script_input.setPlaceholderText("Enter your message. Use () where you want to insert contact names.\nExample: Hello (), your message here")
-        self.script_input.setMaximumHeight(100)
-        self.script_input.hide()  # Initially hidden
-        
-        # Preview label
+        # Message preview
         self.preview_label = QLabel("Message Preview:")
-        self.preview_text = QLabel()
-        self.preview_text.setWordWrap(True)
-        self.preview_text.setStyleSheet("QLabel { background-color: #f0f0f0; padding: 10px; border-radius: 5px; }")
+        self.preview_text = QTextEdit()
+        self.preview_text.setMaximumHeight(80)
+        self.preview_text.setReadOnly(True)
         
-        script_layout.addWidget(script_label)
         script_layout.addWidget(self.script_combo)
         script_layout.addWidget(self.preview_label)
         script_layout.addWidget(self.preview_text)
+        
+        # Custom script toggle
+        self.custom_script_toggle = QCheckBox("Use Custom Script")
+        self.custom_script_toggle.clicked.connect(self.toggle_script_input)
+        
+        # Custom script input (initially hidden)
+        self.script_input = QTextEdit()
+        self.script_input.setPlaceholderText("Enter custom message. Use () for name placement (max 1600 characters)")
+        self.script_input.setMaximumHeight(100)
+        self.script_input.hide()
         
         send_btn = GradientButton("Send Alert")
         back_btn = GradientButton("Back")
@@ -627,8 +624,15 @@ class OnArrivalGUI(QMainWindow):
     def update_message_preview(self):
         """Update the message preview with selected template"""
         if not self.custom_script_toggle.isChecked():
-            template = self.alert_system.notification_service.get_script_templates()[self.script_combo.currentText()]
-            self.preview_text.setText(template.replace('()', '[Contact Name]'))
+            try:
+                selected_script = self.script_combo.currentText()
+                if selected_script:
+                    template = self.alert_system.notification_service.get_script_templates()[selected_script]
+                    self.preview_text.setText(template.replace('()', '[Contact Name]'))
+                else:
+                    self.preview_text.setText("No script selected")
+            except Exception as e:
+                self.preview_text.setText(f"Error loading script: {str(e)}")
 
     def toggle_script_input(self):
         """Toggle between custom and prewritten scripts"""
@@ -637,11 +641,6 @@ class OnArrivalGUI(QMainWindow):
         self.script_combo.setEnabled(not is_custom)
         self.preview_label.setVisible(not is_custom)
         self.preview_text.setVisible(not is_custom)
-
-    def handle_back_button(self):
-        """Handle back button clicks with rotation but no ripple"""
-        self.logo.rotate_to_without_ripple(0)  # Rotate back to 0 degrees without ripple
-        QTimer.singleShot(300, lambda: self.show_choice_screen())
 
 def main():
     app = QApplication(sys.argv)
