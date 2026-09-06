@@ -259,30 +259,16 @@
 
         // Global state
         let groups = [];
-        let scripts = {
-            "Landing": {
-                "main": "Hello (), Griffin the Goat has arrived at his destination safely.",
-                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
-            },
-            "Eagle": {
-                "main": "Hello (), The eagle has inevitably landed and will be back shortly.",
-                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
-            },
-            "Familiar Soil": {
-                "main": "Hello (), if you are hearing this, Griffin is back on familiar soil.",
-                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
-            },
-            "Custom Message": {
-                "main": "",
-                "follow_up": "Thank you for listening, the G.O.A.T. approaches and is thankful for your time."
-            }
-        };
+        let scripts = {};
 
         // Initialize components
         $(document).ready(() => {
-            // Set up script select
-            Object.keys(scripts).forEach(script => {
-                $('#scriptSelect').append(`<option value="${script}">${script}</option>`);
+            // Load templates and initialize
+            loadTemplates().then(() => {
+                // Set up script select after templates are loaded
+                Object.keys(scripts).forEach(script => {
+                    $('#scriptSelect').append(`<option value="${script}">${script}</option>`);
+                });
             });
 
             // Set up event listeners
@@ -300,6 +286,26 @@
         });
 
         // API functions
+        async function loadTemplates() {
+            try {
+                const response = await fetch('/api/templates');
+                scripts = await response.json();
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                // Fallback to basic templates
+                scripts = {
+                    "Basic Arrival": {
+                        "main": "Hello, this is an automated notification that the traveler has arrived at their destination safely.",
+                        "follow_up": "Thank you for listening. This was an automated arrival notification service."
+                    },
+                    "Custom Message": {
+                        "main": "",
+                        "follow_up": "Thank you for listening. This was an automated notification service."
+                    }
+                };
+            }
+        }
+
         async function loadGroups() {
             try {
                 const response = await fetch('/api/groups');

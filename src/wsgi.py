@@ -7,8 +7,10 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-# Set environment variable
-os.environ['PYTHONANYWHERE_DOMAIN'] = 'griffinstrier.pythonanywhere.com'
+# Set environment variable for PythonAnywhere domain if not already set
+if 'PYTHONANYWHERE_DOMAIN' not in os.environ:
+    # Use a placeholder that should be configured in production
+    os.environ['PYTHONANYWHERE_DOMAIN'] = 'your-domain.pythonanywhere.com'
 
 # Import your Flask app
 from src.web_app import app as application
